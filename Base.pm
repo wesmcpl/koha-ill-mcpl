@@ -193,14 +193,6 @@ sub create {
     my $core_fields = _get_core_string();
     if ( !$stage || $stage eq 'init' ) {
 
-        # First thing we want to do, is check if we're receiving
-        # an OpenURL and transform it into something we can
-        # understand
-        if ($other->{openurl}) {
-            # We only want to transform once
-            delete $other->{openurl};
-            $params = _openurl_to_ill($params);
-        }
 
         # We simply need our template .INC to produce a form.
         return {
@@ -930,133 +922,25 @@ Return a hashref of core fields
 
 sub _get_core_fields {
     return {
-        article_author   =>  'Article author',
-        article_title    =>  'Article title',
         associated_id    =>  'Associated ID',
         author           =>  'Author',
-        chapter_author   =>  'Chapter author',
-        chapter          =>  'Chapter',
-        conference_date  =>  'Conference date',
-        doi              =>  'DOI',
-        editor           =>  'Editor',
-        institution      =>  'Institution',
         isbn             =>  'ISBN',
         issn             =>  'ISSN',
+		asin             =>  'ASIN',
         issue            =>  'Issue',
         item_date        =>  'Date',
-        pages            =>  'Pages',
-        pagination       =>  'Pagination',
-        paper_author     =>  'Paper author',
-        paper_title      =>  'Paper title',
+		other_info		 =>	 'Other Info',
         part_edition     =>  'Part / Edition',
-        publication      =>  'Publication',
-        published_date   =>  'Publication date',
-        published_place  =>  'Place of publication',
         publisher        =>  'Publisher',
-        sponsor          =>  'Sponsor',
         title            =>  'Title',
+		console			 =>  'Console',
         type             =>  'Type',
-        venue            =>  'Venue',
         volume           =>  'Volume',
         year             =>  'Year'
     };
 }
 
-=head3 _openurl_to_ill
 
-Take a hashref of OpenURL parameters and return
-those same parameters but transformed to the ILL
-schema
-
-=cut
-
-sub _openurl_to_ill {
-    my ($params) = @_;
-
-    # Parameters to not place in our custom
-    # parameters arrays
-    my $ignore = {
-        openurl    => 1,
-        backend    => 1,
-        method     => 1,
-        opac       => 1,
-        cardnumber => 1,
-        branchcode => 1,
-        userid     => 1,
-        password   => 1,
-        koha_login_context => 1,
-        stage => 1
-    };
-
-    my $transform_metadata = {
-        genre   => 'type',
-        content => 'type',
-        format  => 'type',
-        atitle  => 'article_title',
-        aulast  => 'author',
-        author  => 'author',
-        date    => 'year',
-	issue   => 'issue',
-        volume  => 'volume',
-        isbn    => 'isbn',
-        issn    => 'issn',
-	rft_id  => 'doi',
-        year    => 'year',
-        title   => 'title',
-        author  => 'author',
-        aulast  => 'article_author',
-        pages   => 'pages',
-	ctitle  => 'chapter',
-	clast   => 'chapter_author'
-    };
-
-    my $transform_value = {
-        type => {
-            fulltext   => 'article',
-            selectedft => 'article',
-            print      => 'book',
-            ebook      => 'book',
-	    journal    => 'journal'
-        }
-    };
-
-    my $return = {};
-    my $custom_key = [];
-    my $custom_value = [];
-    # First make sure our keys are correct
-    foreach my $meta_key(keys %{$params->{other}}) {
-        # If we are transforming this property...
-        if (exists $transform_metadata->{$meta_key}) {
-            # ...do it
-            $return->{$transform_metadata->{$meta_key}} = $params->{other}->{$meta_key};
-        } else {
-            # Otherwise, pass it through untransformed and maybe move it
-            # to our custom parameters array
-            if (!exists $ignore->{$meta_key}) {
-                push @{$custom_key}, $meta_key;
-                push @{$custom_value}, $params->{other}->{$meta_key};
-            } else {
-                $return->{$meta_key} = $params->{other}->{$meta_key};
-            }
-        }
-    }
-    # Now check our values are correct
-    foreach my $val_key(keys %{$return}) {
-        my $value = $return->{$val_key};
-        if (exists $transform_value->{$val_key} && exists $transform_value->{$val_key}->{$value}) {
-            $return->{$val_key} = $transform_value->{$val_key}->{$value};
-        }
-    }
-    if (scalar @{$custom_key} > 0) {
-        $return->{custom_key} = join("\0", @{$custom_key});
-        $return->{custom_value} = join("\0", @{$custom_value});
-    }
-    $params->{other} = $return;
-    $params->{custom_keys} = $custom_key;
-    $params->{custom_values} = $custom_value;
-    return $params;
-
-}
 
 =head3 _can_create_request
 
