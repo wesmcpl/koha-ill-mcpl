@@ -21,9 +21,5 @@
             <label for="issn">ISSN:</label>
             <input type="text" name="issn" id="issn" value="[% whole.value.other.issn %]" />
         </li>
-        <li>
-            <label for="doi">DOI:</label>
-            <input type="text" name="doi" id="doi" value="[% whole.value.other.doi %]" />
-        </li>
     </ol>
 </fieldset>

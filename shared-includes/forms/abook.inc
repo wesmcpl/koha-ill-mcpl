@@ -1,5 +1,5 @@
-<fieldset id="book-mcpl-fieldset" class="rows">
-    <legend>Book details</legend>
+<fieldset id="abook-mcpl-fieldset" class="rows">
+    <legend>Audio Book details</legend>
     <ol id="publication-mcpl-fields">
         <li>
             <label for="title">Title:</label>
@@ -16,10 +16,6 @@
         <li>
             <label for="year">Year:</label>
             <input type="text" name="year" id="year" value="[% whole.value.other.year %]" />
-        </li>	
-        <li>
-            <label for="part_edition">Part / Edition:</label>
-            <input type="text" name="part_edition" id="part_edition" value="[% whole.value.other.part_edition %]" />
         </li>
     </ol>
 </fieldset>

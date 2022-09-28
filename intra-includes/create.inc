@@ -27,40 +27,35 @@
           [% ELSE %]
           <option value="book">Book</option>
           [% END %]
-          [% IF whole.value.other.type.lower == "chapter" %]
-          <option value="chapter" selected="selected">Chapter</option>
+          [% IF whole.value.other.type.lower == "lpbook" %]
+          <option value="lpbook" selected="selected">Large Print Book</option>
           [% ELSE %]
-          <option value="chapter">Chapter</option>
+          <option value="lpbook">Large Print Book</option>
           [% END %]
           [% IF whole.value.other.type.lower == "journal" %]
           <option value="journal" selected="selected">Journal</option>
           [% ELSE %]
           <option value="journal">Journal</option>
           [% END %]
-          [% IF whole.value.other.type.lower == "article" %]
-          <option value="article" selected="selected">Journal article</option>
+          [% IF whole.value.other.type.lower == "dvd" %]
+          <option value="dvd" selected="selected">DVD</option>
           [% ELSE %]
-          <option value="article">Journal article</option>
+          <option value="dvd">DVD</option>
           [% END %]
-          [% IF whole.value.other.type.lower == "thesis" %]
-          <option value="thesis" selected="selected">Thesis</option>
+          [% IF whole.value.other.type.lower == "vgame" %]
+          <option value="vgame" selected="selected">Video Game</option>
           [% ELSE %]
-          <option value="thesis">Thesis</option>
+          <option value="vgame">Video Game</option>
           [% END %]
-          [% IF whole.value.other.type.lower == "conference" %]
-          <option value="conference" selected="selected">Conference</option>
+          [% IF whole.value.other.type.lower == "abook" %]
+          <option value="abook" selected="selected">Audiobook</option>
           [% ELSE %]
-          <option value="conference">Conference</option>
+          <option value="abook">Audiobook</option>
           [% END %]
-          [% IF whole.value.other.type.lower == "other" %]
-          <option value="other" selected="selected">Other</option>
+          [% IF whole.value.other.type.lower == "cd" %]
+          <option value="cd" selected="selected">Music CD</option>
           [% ELSE %]
-          <option value="other">Other</option>
-          [% END %]
-          [% IF whole.value.other.type.lower == "resource" %]
-          <option value="resource" selected="selected">Generic resource</option>
-          [% ELSE %]
-          <option value="resource">Generic resource</option>
+          <option value="cd">Music CD</option>
           [% END %]
         </select>
       </li>
