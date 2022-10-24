@@ -922,6 +922,8 @@ Return a hashref of core fields
 
 sub _get_core_fields {
     return {
+        article_author   =>  'Article author',
+        article_title    =>  'Article title',
         associated_id    =>  'Associated ID',
         author           =>  'Author',
         isbn             =>  'ISBN',
@@ -930,7 +932,10 @@ sub _get_core_fields {
         issue            =>  'Issue',
         item_date        =>  'Date',
 		other_info		 =>	 'Other Info',
+        pages            =>  'Pages',
         part_edition     =>  'Part / Edition',
+        publication      =>  'Publication',
+        published_date   =>  'Publication date',
         publisher        =>  'Publisher',
         title            =>  'Title',
 		console			 =>  'Console',
