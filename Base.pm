@@ -974,8 +974,11 @@ record and return its ID
 sub _mcpl2biblio {
     my ( $self, $metadata ) = @_;
 
-    # We only want to create biblios for books
-    return 0 unless $metadata->{type} eq 'book';
+    # We only want to create biblios for books, dvd, abooks
+	if ($metadata->{type} ne 'book' || $metadata->{type} ne 'abook' || $metadata->{type} ne 'dvd'){
+		return 0;
+	}
+	
 
     # We're going to try and populate author, title & ISBN
     my $author = $metadata->{author} if $metadata->{author};
