@@ -975,7 +975,7 @@ sub _mcpl2biblio {
     my ( $self, $metadata ) = @_;
 
     # We only want to create biblios for books, dvd, abooks
-	if ($metadata->{type} ne 'book' || $metadata->{type} ne 'abook' || $metadata->{type} ne 'dvd'){
+	if ($metadata->{type} ne 'book' && $metadata->{type} ne 'abook' && $metadata->{type} ne 'dvd'){
 		return 0;
 	}
 	
