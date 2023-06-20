@@ -112,7 +112,12 @@ sub capabilities {
         # Migrate
         migrate => sub { $self->migrate(@_); },
 
-        # Return whether we are ready to display availability
+        # Return whether we can create the request
+        # i.e. the create form has been submitted
+        can_create_request => sub { _can_create_request(@_) },
+
+        # This is required for compatibility
+        # with Koha versions prior to bug 33716
         should_display_availability => sub { _can_create_request(@_) },
 
         # View and manage a request
@@ -484,7 +489,7 @@ sub edititem {
                     DELETE FROM illrequestattributes WHERE illrequest_id=?
                 |, undef, $request->id);
                 # Insert all current attributes for this request
-                foreach my $attr(%{$request_details}) {
+                 foreach my $attr( keys %{$request_details}) {
                     my $value = $request_details->{$attr};
                     if ($value && length $value > 0){
                         my @bind = ($request->id, $attr, $value, 0);
@@ -896,7 +901,7 @@ sub _get_request_details {
         %$custom
     };
     my $core = _get_core_fields();
-    foreach my $key(%{$core}) {
+    foreach my $key( keys %{$core}) {
         $return->{$key} = $params->{other}->{$key};
     }
 
