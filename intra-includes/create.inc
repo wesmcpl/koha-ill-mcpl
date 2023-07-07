@@ -14,7 +14,7 @@
 
 [% IF whole.stage == "form" %]
 <h2>Create a manual ILL request</h2>
-<form id="mcpl_create_form" method="POST" action=[% here %]>
+<form id="create_form" method="POST" action=[% here %]>
   <fieldset class="rows">
     <legend>General details</legend>
     <ol id="general-mcpl-fields">
@@ -104,7 +104,7 @@
     [% INCLUDE "${cwd}/shared-includes/shared.js" %]
     // Require a username and branch selection
     document.addEventListener('DOMContentLoaded', function(){
-        $('#mcpl_create_form #cardnumber, #mcpl_create_form #branchcode').change(function() {
+        $('#create_form #cardnumber, #create_form #branchcode').change(function() {
             var comp = ['#cardnumber','#branchcode'].filter(function(id) {
                 return $(id).val().length > 0;
             });
@@ -113,10 +113,10 @@
         
 		// Added for Koha 22.11
 		patron_autocomplete(
-        $('#mcpl_create_form #cardnumber'),
+        $('#create_form #cardnumber'),
         {
           'on-select-callback': function( event, ui ) {
-		   $("#mcpl_create_form #cardnumber").val( ui.item.cardnumber );
+		   $("#create_form #cardnumber").val( ui.item.cardnumber );
             return false;
           }
         }
