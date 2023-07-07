@@ -110,22 +110,17 @@
             });
             $('#ill-submit').attr('disabled', comp.length < 2);
         });
-        // Add autocomplete for patron selection
-        $('#mcpl_create_form #cardnumber').autocomplete({
-            source: "/cgi-bin/koha/circ/ysearch.pl",
-            minLength: 3,
-            select: function( event, ui ) {
-                var field = ui.item.cardnumber;
-                $('#mcpl_create_form #cardnumber').val(field);
-                return false;
-            }
-        })
-        .data( "ui-autocomplete" )._renderItem = function( ul, item ) {
-            return $( "<li></li>" )
-                .data( "ui-autocomplete-item", item )
-                .append( "<a>" + item.surname + ", " + item.firstname + " (" + item.cardnumber + ") <small>" + item.address + " " + item.city + " " + item.zipcode + " " + item.country + "</small></a>" )
-                .appendTo( ul );
-        };
+        
+		// Added for Koha 22.11
+		patron_autocomplete(
+        $('#create_form #cardnumber'),
+        {
+          'on-select-callback': function( event, ui ) {
+            $("#create_form #cardnumber").val( ui.item.patron_id );
+            return false;
+          }
+        }
+      );
     });
     // ]]>
 </script>
