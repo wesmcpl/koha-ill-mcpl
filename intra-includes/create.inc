@@ -113,10 +113,10 @@
         
 		// Added for Koha 22.11
 		patron_autocomplete(
-        $('#create_form #cardnumber'),
+        $('#mcpl_create_form #cardnumber'),
         {
           'on-select-callback': function( event, ui ) {
-            $("#create_form #cardnumber").val( ui.item.patron_id );
+            $("#mcpl_create_form #cardnumber").val( ui.item.patron_id );
             return false;
           }
         }
