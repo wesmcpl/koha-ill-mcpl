@@ -116,7 +116,7 @@
         $('#mcpl_create_form #cardnumber'),
         {
           'on-select-callback': function( event, ui ) {
-            $("#mcpl_create_form #cardnumber").val( ui.item.patron_id );
+		   $("#mcpl_create_form #cardnumber").val( ui.item.cardnumber );
             return false;
           }
         }
