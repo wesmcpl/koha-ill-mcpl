@@ -22,14 +22,14 @@ use DateTime;
 use File::Basename qw( dirname );
 use C4::Installer;
 
-use Koha::Illrequests;
-use Koha::Illrequestattribute;
+use Koha::ILL::Requests;
+use Koha::ILL::Request::Attribute;
 use C4::Biblio qw( AddBiblio );
 use C4::Charset qw( MarcToUTF8Record );
 
 =head1 NAME
 
-Koha::Illrequest::Backend::Mcpl::Base - Koha ILL Backend: MCPL
+Koha::ILL::Request::Backend::Mcpl::Base - Koha ILL Backend: MCPL
 
 =head1 SYNOPSIS
 
@@ -62,7 +62,7 @@ well as the option to enter additional fields with arbitrary names & values.
 
 =head3 new
 
-  my $backend = Koha::Illrequest::Backend::Mcpl->new;
+  my $backend = Koha::ILL::Request::Backend::Mcpl->new;
 
 =cut
 
@@ -123,7 +123,12 @@ sub capabilities {
         should_display_availability => sub { _can_create_request(@_) },
 
         # View and manage a request
-        illview => sub { illview(@_); }
+        illview => sub { illview(@_); },
+
+        provides_batch_requests => sub { return 1; },
+
+        # We can create ILL requests with data passed from the API
+        create_api => sub { $self->create_api(@_) }
     };
     return $capabilities->{$name};
 }
@@ -140,7 +145,7 @@ sub metadata {
     my ( $self, $request ) = @_;
     my $attrs       = $request->illrequestattributes;
     my $metadata    = {};
-    my @ignore      = ('requested_partners');
+    my @ignore      = ('requested_partners', 'type', 'type_disclaimer_value', 'type_disclaimer_date');
 	my $core_fields = _get_core_fields();
     while ( my $attr = $attrs->next ) {
         my $type = $attr->type;
@@ -200,6 +205,14 @@ sub create {
     my $core_fields = _get_core_string();
     if ( !$stage || $stage eq 'init' ) {
 
+        # First thing we want to do, is check if we're receiving
+        # an OpenURL and transform it into something we can
+        # understand
+        if ($other->{openurl}) {
+            # We only want to transform once
+            delete $other->{openurl};
+            $params = _openurl_to_ill($params);
+        }
 
         # We simply need our template .INC to produce a form.
         return {
@@ -300,39 +313,9 @@ sub create {
         }
         return $result if $failed;
 
-        # ...Populate Illrequestattributes
-        # generate $request_details
-        my $request_details = _get_request_details($params, $other);
+        $self->add_request( { request => $params->{request}, other => $other } );
 
-        ## Create request
-
-        # Create bib record
-        my $biblionumber = $self->_mcpl2biblio($request_details);
-
-        # ...Populate Illrequest
-        my $request = $params->{request};
-        $request->biblio_id($biblionumber) unless $biblionumber == 0;
-        $request->borrowernumber( $brw->borrowernumber );
-        $request->branchcode( $params->{other}->{branchcode} );
-        $request->status('NEW');
-        $request->backend( $params->{other}->{backend} );
-        $request->placed( DateTime->now );
-        $request->updated( DateTime->now );
-        $request->store;
-
-        while ( my ( $type, $value ) = each %{$request_details} ) {
-            if ($value && length $value > 0) {
-                Koha::Illrequestattribute->new(
-                    {
-                        illrequest_id => $request->illrequest_id,
-						column_exists( 'illrequestattributes', 'backend' ) ? (backend =>"Mcpl") : (),
-                        type          => $type,
-                        value         => $value,
-                        readonly      => 0
-                    }
-                )->store;
-            }
-        }
+        my $request_details = _get_request_details( $params, $other );
 
         ## -> create response.
         return {
@@ -492,15 +475,24 @@ sub edititem {
                     DELETE FROM illrequestattributes WHERE illrequest_id=?
                 |, undef, $request->id);
                 # Insert all current attributes for this request
-                 foreach my $attr( keys %{$request_details}) {
+                foreach my $attr( keys %{$request_details}) {
                     my $value = $request_details->{$attr};
                     if ($value && length $value > 0){
-                        my @bind = ($request->id, $attr, $value, 0);
-                        $dbh->do ( q|
-                            INSERT INTO illrequestattributes
-                            (illrequest_id, type, value, readonly) VALUES
-                            (?, ?, ?, ?)
-                        |, undef, @bind);
+                        if(column_exists( 'illrequestattributes', 'backend' ) ){
+                            my @bind = ($request->id, 'Mcpl', $attr, $value, 0);
+                            $dbh->do ( q|
+                                INSERT INTO illrequestattributes
+                                (illrequest_id, backend, type, value, readonly) VALUES
+                                (?, ?, ?, ?, ?)
+                            |, undef, @bind);
+                        }else{
+                            my @bind = ($request->id, $attr, $value, 0);
+                            $dbh->do ( q|
+                                INSERT INTO illrequestattributes
+                                (illrequest_id, type, value, readonly) VALUES
+                                (?, ?, ?, ?)
+                            |, undef, @bind);
+                        }
                     }
                 }
             }
@@ -530,7 +522,6 @@ sub edititem {
         };
     }
 }
-
 
 =head3 confirm
 
@@ -694,7 +685,7 @@ sub migrate {
     # anything we require specifically for this backend.
     if ( !$stage || $stage eq 'immigrate' ) {
         my $original_request =
-          Koha::Illrequests->find( $other->{illrequest_id} );
+          Koha::ILL::Requests->find( $other->{illrequest_id} );
         my $new_request = $params->{request};
         $new_request->borrowernumber( $original_request->borrowernumber );
         $new_request->branchcode( $original_request->branchcode );
@@ -715,7 +706,7 @@ sub migrate {
           { map { $_->type => $_->value } ( $original_attributes->as_list ) };
         $request_details->{migrated_from} = $original_request->illrequest_id;
         while ( my ( $type, $value ) = each %{$request_details} ) {
-            Koha::Illrequestattribute->new(
+            Koha::ILL::Request::Attribute->new(
                 {
                     illrequest_id => $new_request->illrequest_id,
 					column_exists( 'illrequestattributes', 'backend' ) ? (backend =>"Mcpl") : (),
@@ -742,7 +733,7 @@ sub migrate {
         my $new_request = $params->{request};
         my $from_id = $new_request->illrequestattributes->find(
             { type => 'migrated_from' } )->value;
-        my $request     = Koha::Illrequests->find($from_id);
+        my $request     = Koha::ILL::Requests->find($from_id);
 
         # Just cancel the original request now it's been migrated away
         $request->status("REQREV");
@@ -791,7 +782,7 @@ sub _get_requested_partners {
         illrequest_id => $args->{request}->id,
         type          => 'requested_partners'
     };
-    my $res = Koha::Illrequestattributes->find($where);
+    my $res = Koha::ILL::Request::Attributes->find($where);
     return ($res) ? $res->value : undef;
 }
 
@@ -811,8 +802,8 @@ sub _set_requested_partners {
         illrequest_id => $args->{request}->id,
         type          => 'requested_partners'
     };
-    Koha::Illrequestattributes->search($where)->delete();
-    Koha::Illrequestattribute->new(
+    Koha::ILL::Request::Attributes->search($where)->delete();
+    Koha::ILL::Request::Attributes->new(
         {
             illrequest_id => $args->{request}->id,
 			column_exists( 'illrequestattributes', 'backend' ) ? (backend =>"Mcpl") : (),
@@ -954,8 +945,179 @@ sub _get_core_fields {
         year             =>  'Year'
     };
 }
+=head3 add_request
 
+Add an ILL request
 
+=cut
+
+sub add_request {
+
+    my ( $self, $params ) = @_;
+
+    # ...Populate Illrequestattributes
+    # generate $request_details
+    my $request_details = _get_request_details( $params, $params->{other} );
+
+    my ( $brw_count, $brw ) =
+        _validate_borrower( $params->{other}->{'cardnumber'} );
+
+    ## Create request
+
+    # Create bib record
+    my $biblionumber = $self->_freeform2biblio($request_details);
+
+    # ...Populate Illrequest
+    my $request = $params->{request};
+    $request->biblio_id($biblionumber) unless $biblionumber == 0;
+    $request->borrowernumber( $brw->borrowernumber );
+    $request->branchcode( $params->{other}->{branchcode} );
+    $request->status('NEW');
+    $request->backend( $params->{other}->{backend} );
+    $request->placed( DateTime->now );
+    $request->updated( DateTime->now );
+    $request->batch_id(
+        $params->{other}->{ill_batch_id} ? $params->{other}->{ill_batch_id} : $params->{other}->{batch_id} )
+        if column_exists( 'illrequests', 'batch_id' );
+    $request->store;
+
+    while ( my ( $type, $value ) = each %{$request_details} ) {
+        if ( $value && length $value > 0 ) {
+            Koha::ILL::Request::Attribute->new(
+                {
+                    illrequest_id => $request->illrequest_id,
+                    column_exists( 'illrequestattributes', 'backend' ) ? ( backend => "FreeForm" ) : (),
+                    type     => $type,
+                    value    => $value,
+                    readonly => 0
+                }
+            )->store;
+        }
+    }
+
+    return $request;
+}
+
+=head3 _openurl_to_ill
+
+Take a hashref of OpenURL parameters and return
+those same parameters but transformed to the ILL
+schema
+
+=cut
+
+sub _openurl_to_ill {
+    my ($params) = @_;
+
+    # Parameters to not place in our custom
+    # parameters arrays
+    my $ignore = {
+        openurl    => 1,
+        backend    => 1,
+        method     => 1,
+        opac       => 1,
+        cardnumber => 1,
+        branchcode => 1,
+        userid     => 1,
+        password   => 1,
+        koha_login_context => 1,
+        stage => 1
+    };
+
+    my $transform_metadata = {
+        genre   => 'type',
+        content => 'type',
+        format  => 'type',
+        atitle  => 'article_title',
+        aulast  => 'author',
+        author  => 'author',
+        date    => 'year',
+	issue   => 'issue',
+        volume  => 'volume',
+        isbn    => 'isbn',
+        issn    => 'issn',
+	rft_id  => 'doi',
+        year    => 'year',
+        title   => 'title',
+        author  => 'author',
+        aulast  => 'article_author',
+        pages   => 'pages',
+	ctitle  => 'chapter',
+	clast   => 'chapter_author'
+    };
+
+    my $transform_value = {
+        type => {
+            fulltext   => 'article',
+            selectedft => 'article',
+            print      => 'book',
+            ebook      => 'book',
+	    journal    => 'journal'
+        }
+    };
+
+    my $return = {};
+    my $custom_key = [];
+    my $custom_value = [];
+    # First make sure our keys are correct
+    foreach my $meta_key(keys %{$params->{other}}) {
+        # If we are transforming this property...
+        if (exists $transform_metadata->{$meta_key}) {
+            # ...do it
+            $return->{$transform_metadata->{$meta_key}} = $params->{other}->{$meta_key};
+        } else {
+            # Otherwise, pass it through untransformed and maybe move it
+            # to our custom parameters array
+            if (!exists $ignore->{$meta_key}) {
+                push @{$custom_key}, $meta_key;
+                push @{$custom_value}, $params->{other}->{$meta_key};
+            } else {
+                $return->{$meta_key} = $params->{other}->{$meta_key};
+            }
+        }
+    }
+    # Now check our values are correct
+    foreach my $val_key(keys %{$return}) {
+        my $value = $return->{$val_key};
+        if (exists $transform_value->{$val_key} && exists $transform_value->{$val_key}->{$value}) {
+            $return->{$val_key} = $transform_value->{$val_key}->{$value};
+        }
+    }
+    if (scalar @{$custom_key} > 0) {
+        $return->{custom_key} = join("\0", @{$custom_key});
+        $return->{custom_value} = join("\0", @{$custom_value});
+    }
+    $params->{other} = $return;
+    $params->{custom_keys} = $custom_key;
+    $params->{custom_values} = $custom_value;
+    return $params;
+
+}
+
+=head3 create_api
+
+Create a local submission from data supplied via an
+API call
+
+=cut
+
+sub create_api {
+    my ( $self, $body, $request ) = @_;
+
+    my $patron = Koha::Patrons->find( $body->{borrowernumber} );
+
+    $body->{cardnumber} = $patron->cardnumber;
+
+    foreach my $attr ( @{ $body->{extended_attributes} } ) {
+        $body->{ $attr->{type} } = $attr->{value};
+    }
+
+    $body->{type} = $body->{'isbn'} ? 'book' : 'article';
+
+    my $submission = $self->add_request( { request => $request, other => $body } );
+
+    return $submission;
+}
 
 =head3 _can_create_request
 
@@ -1005,15 +1167,15 @@ sub _mcpl2biblio {
 	}
 
     if ($isbn) {
-        my $marc_isbn = MARC::Field->new( '020', '', '', a => $isbn );
+        my $marc_isbn = $marcflavour eq 'MARC21' ? MARC::Field->new( '020', '', '', a => $isbn ) : MARC::Field->new( '010', '', '', a => $isbn );
         $record->append_fields($marc_isbn);
     }
     if ($author) {
-        my $marc_author = MARC::Field->new( '100', '1', '', a => $author );
+        my $marc_author = $marcflavour eq 'MARC21' ? MARC::Field->new( '100', '1', '', a => $author ) : MARC::Field->new( '700', '1', '', a => $author );
         $record->append_fields($marc_author);
     }
     if ($title) {
-        my $marc_title = MARC::Field->new( '245', '0', '0', a => $title );
+        my $marc_title = $marcflavour eq 'MARC21' ? MARC::Field->new( '245', '0', '0', a => $title ) : MARC::Field->new( '200', '0', '0', a => $title );
         $record->append_fields($marc_title);
     }
 
