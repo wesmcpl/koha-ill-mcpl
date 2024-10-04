@@ -965,7 +965,7 @@ sub add_request {
     ## Create request
 
     # Create bib record
-    my $biblionumber = $self->_freeform2biblio($request_details);
+    my $biblionumber = $self->_mcpl2biblio($request_details);
 
     # ...Populate Illrequest
     my $request = $params->{request};
@@ -986,7 +986,7 @@ sub add_request {
             Koha::ILL::Request::Attribute->new(
                 {
                     illrequest_id => $request->illrequest_id,
-                    column_exists( 'illrequestattributes', 'backend' ) ? ( backend => "FreeForm" ) : (),
+                    column_exists( 'illrequestattributes', 'backend' ) ? ( backend => "Mcpl" ) : (),
                     type     => $type,
                     value    => $value,
                     readonly => 0
