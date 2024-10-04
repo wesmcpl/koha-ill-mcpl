@@ -14,7 +14,7 @@
 
 [% IF whole.stage == "form" %]
 <h2>Create a manual ILL request</h2>
-<form id="mcpl_create_form" method="POST" action=[% here %]>
+<form id="create_form" method="POST" action=[% here %]>
   [% INCLUDE 'csrf-token.inc' %]
   <fieldset class="rows">
     <legend>General details</legend>
@@ -105,23 +105,40 @@
     [% INCLUDE "${cwd}/shared-includes/shared.js" %]
     // Require a username and branch selection
     document.addEventListener('DOMContentLoaded', function(){
-        $('#mcpl_create_form #cardnumber, #mcpl_create_form #branchcode').change(function() {
+        $('#create_form #cardnumber, #create_form #branchcode').change(function() {
             var comp = ['#cardnumber','#branchcode'].filter(function(id) {
                 return $(id).val().length > 0;
             });
             $('#ill-submit').attr('disabled', comp.length < 2);
         });
-        
-		// Added for Koha 22.11
-		patron_autocomplete(
-        $('#mcpl_create_form #cardnumber'),
+      /* Maintain patron autocomplete compatibility across versions */
+      [% IF koha_version.major <= 22 && koha_version.minor < 11 %]
+      $('#create_form #cardnumber').autocomplete({
+          source: "/cgi-bin/koha/circ/ysearch.pl",
+          minLength: 3,
+          select: function( event, ui ) {
+              var field = ui.item.cardnumber;
+              $('#create_form #cardnumber').val(field)
+              return false;
+          }
+      })
+      .data( "ui-autocomplete" )._renderItem = function( ul, item ) {
+          return $( "<li></li>" )
+          .data( "ui-autocomplete-item", item )
+          .append( "<a>" + item.surname + ", " + item.firstname + " (" + item.cardnumber + ") <small>" + item.address + " " + item.city + " " + item.zipcode + " " + item.country + "</small></a>" )
+          .appendTo( ul );
+      };
+      [% ELSE %]
+      patron_autocomplete(
+        $('#create_form #cardnumber'),
         {
           'on-select-callback': function( event, ui ) {
-		   $("#mcpl_create_form #cardnumber").val( ui.item.cardnumber );
+            $("#create_form #cardnumber").val( ui.item.cardnumber );
             return false;
           }
         }
       );
+      [% END %]        
     });
     // ]]>
 </script>

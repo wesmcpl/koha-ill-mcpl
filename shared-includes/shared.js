@@ -18,10 +18,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     );
     $('#type').change(function() {
-        $('#mcpl_create_form').prepend(
+        $('#create_form').prepend(
             '<input type="hidden" name="change_type" value="1" />'
         );
-        $('#mcpl_create_form').submit();
+        $('#create_form').submit();
     });
     $('#mcpl-fields').on('keyup', '.custom-name', function() {
         var val = $(this).val();
