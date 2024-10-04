@@ -1,3 +1,4 @@
+[% SET koha_version = Koha.Version %]
 [% IF whole.error %]
 [% IF whole.status == 'missing_identifier' %]
 <p><em>Please Note:</em> Mandatory field Identifier is missing.</p>
