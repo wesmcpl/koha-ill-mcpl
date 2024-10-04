@@ -14,7 +14,8 @@
 
 [% IF whole.stage == "form" %]
 <h2>Create a manual ILL request</h2>
-<form id="mcpl_create_form" method="POST" action=[% here %]>
+<form id="create_form" method="POST" action=[% here %]>
+  [% INCLUDE 'csrf-token.inc' %]
   <fieldset class="rows">
     <legend>General details</legend>
     <ol id="general-mcpl-fields">
